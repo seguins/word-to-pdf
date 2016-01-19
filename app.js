@@ -1,10 +1,10 @@
 const http = require('http');
 const fs = require('fs');
 const spawn = require('child_process').spawn;
+var crypto = require('crypto');
 var argv = require('optimist')
   .default('p', 8080)
   .argv;
-
 
 var wordExeList = [
   'C:\\Program Files\\Microsoft Office\\Office15\\WINWORD.EXE',
@@ -49,28 +49,31 @@ function handleRequest(request, response) {
   });
 
   request.on('end', function() {
-    fs.writeFile('doc.docx', docBinary, 'binary', function(err) {
-      onSavedInput(response, err)
+    crypto.randomBytes(10, function(ex, buf) {
+      var name = buf.toString('hex');
+      fs.writeFile(name + ".docx", docBinary, 'binary', function(err) {
+        if (err) {
+          return returnError(response, err);
+        }
+        onSavedInput(response, name);
+      });
     });
   });
 }
 
-function onSavedInput(response, err) {
-  if (err) {
-    return returnError(response, err);
-  }
-
-  const converter = spawn(wordExec, ['/mExportToPDFext', '/q', 'doc.docx']);
+function onSavedInput(response, name) {
+  const converter = spawn(wordExec, ['/mExportToPDFext', '/q', name + ".docx"]);
 
   converter.on('close', function(code) {
     if (code !== 0) {
       return returnError(response);
     }
-    fs.readFile('doc.pdf', function(err, data) {
+    fs.readFile(name + '.pdf', function(err, data) {
       if (err) {
         return returnError(response, err);
       }
       response.end(data);
+      cleanFiles(name);
     });
   });
 }
@@ -79,4 +82,9 @@ function returnError(response, err) {
   response.statusCode = 500;
   response.end('An error occured');
   return console.log(err);
+}
+
+function cleanFiles(name) {
+  fs.unlink(name + ".pdf");
+  fs.unlink(name + ".docx");
 }
