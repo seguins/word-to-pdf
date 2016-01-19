@@ -1,16 +1,42 @@
 const http = require('http');
 const fs = require('fs');
 const spawn = require('child_process').spawn;
+var argv = require('optimist')
+  .default('p', 8080)
+  .argv;
 
-const PORT = 8080;
 
-createServer(PORT);
+var wordExeList = [
+  'C:\\Program Files\\Microsoft Office\\Office15\\WINWORD.EXE',
+  'C:\\Program Files (x86)\\Microsoft Office\\Office15\\WINWORD.EXE'
+];
+
+var wordExec = null;
+
+if (argv.w) {
+  if (fs.existsSync(argv.w)) {
+    wordExec = argv.w;
+  }
+} else {
+  for (var key in wordExeList) {
+    if (fs.existsSync(wordExeList[key])) {
+      wordExec = wordExeList[key];
+      break;
+    }
+  }
+}
+
+if (wordExec != null) {
+  createServer(argv.p);
+} else {
+  console.error("Word executable not found");
+}
 
 function createServer(port) {
   var server = http.createServer(handleRequest);
 
   server.listen(port, function() {
-    console.log("Server listening on: http://localhost:%s", PORT);
+    console.log("Server listening on: http://localhost:%s", argv.p);
   });
 }
 
@@ -31,10 +57,10 @@ function handleRequest(request, response) {
 
 function onSavedInput(response, err) {
   if (err) {
-    return returnError(response);
+    return returnError(response, err);
   }
 
-  const converter = spawn('C:\\Program Files (x86)\\Microsoft Office\\Office15\\WINWORD.EXE', ['/mExportToPDFext', '/q', 'doc.docx']);
+  const converter = spawn(wordExec, ['/mExportToPDFext', '/q', 'doc.docx']);
 
   converter.on('close', function(code) {
     if (code !== 0) {
@@ -42,14 +68,14 @@ function onSavedInput(response, err) {
     }
     fs.readFile('doc.pdf', function(err, data) {
       if (err) {
-        return returnError(response);
+        return returnError(response, err);
       }
       response.end(data);
     });
   });
 }
 
-function returnError(response) {
+function returnError(response, err) {
   response.statusCode = 500;
   response.end('An error occured');
   return console.log(err);

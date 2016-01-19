@@ -1,0 +1,7 @@
+{
+  "name": "word-to-pdf",
+  "version": "0.1.0",
+  "dependencies": {
+    "optimist": "^0.6.1"
+  }
+}
